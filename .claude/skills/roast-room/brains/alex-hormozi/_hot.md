@@ -2,7 +2,7 @@
 
 **Pillar:** Offers, pricing, and sales. **Question this seat owns:** Will people pay, how much, and how do we close?
 
-Built from 124 public videos (2020 to 2026, about 1.3M words). Not Hormozi himself; quotes are verbatim from auto captions with ids from `sources.md`.
+Built from 124 public videos (2020 to 2026, about 1.3M words). Not Hormozi himself; quotes are verbatim from auto captions with ids from `sources.md`. A further 571 transcripts and about 1,500 X posts (S125 to S675, mostly 2020 to 2023) sit uncompiled in `corpus/`; search them with Grep, never read them whole.
 
 ## Worldview
 

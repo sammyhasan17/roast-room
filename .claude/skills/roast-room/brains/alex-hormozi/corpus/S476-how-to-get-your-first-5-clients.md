@@ -1,0 +1,11 @@
+# S476: How to Get Your First 5 Clients
+
+- URL: https://www.youtube.com/shorts/ZwgRqlIQLEo
+- Type: short
+- Date: unknown
+- Words: 120
+- Collection: Alex Hormozi Brain by Andrew Kirby (YouTube auto captions, no punctuation)
+
+---
+
+to get your first five clients work for free and here's the reasons why number one it's gonna be much easier to get people to sign on with you so that you can actually work with them for free number two you're not risking their money because the other day if this is your first five clients then you're probably not that good at this yet so you need to get some practice to get going number three is that you can do this for free in exchange for testimonials provided you do good work and the best part is it's much easier to get testimonials from people who haven't paid you because they feel like they owe you one

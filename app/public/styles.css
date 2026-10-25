@@ -274,6 +274,7 @@ button { font: inherit; cursor: pointer; }
 .speed button[aria-pressed="true"] { background: #ffffff; color: #07121c; }
 .skip { color: var(--ink-soft); border: 1px solid var(--hairline-strong); }
 .skip:hover, .speed button:hover { color: var(--ink); }
+.voice[aria-pressed="true"] { background: #ffffff; color: #07121c; border-color: #ffffff; }
 
 /* ---------------- side panel ---------------- */
 .panel { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r); position: sticky; top: 72px; max-height: calc(100vh - 92px); display: flex; flex-direction: column; overflow: hidden; }

@@ -42,7 +42,9 @@ const brainText = new Map();
 function brainNorm(key) {
   if (!brainText.has(key)) {
     const dir = path.join(BRAINS_DIR, byKey[key].slug);
-    const all = fs.existsSync(dir) ? fs.readdirSync(dir).map((f) => read(path.join(dir, f))).join(" ") : "";
+    // recursive: a brain can hold a corpus/ subfolder of full transcripts
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }).filter((f) => f.endsWith(".md")) : [];
+    const all = files.map((f) => read(path.join(dir, f))).join(" ");
     brainText.set(key, norm(all));
   }
   return brainText.get(key);

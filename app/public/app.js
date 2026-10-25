@@ -215,6 +215,7 @@ function bindUI() {
     $$(".speed button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
   }));
   $("#skipBtn").addEventListener("click", () => player.skip());
+  voice.init();
 }
 
 // ------------------------------------------------------------- the player
@@ -241,8 +242,8 @@ const player = {
     return new Promise((res) => { const t = setTimeout(() => { this.timers.delete(o); res(); }, ms / this.speed); const o = { t, res }; this.timers.add(o); });
   },
   flushTimers() { for (const o of this.timers) { clearTimeout(o.t); o.res(); } this.timers.clear(); },
-  skip() { this.fast = true; this.flushTimers(); },
-  reset() { this.epoch++; this.q.length = 0; this.fast = true; this.flushTimers(); this.busy = false; this.fast = false; this.info(); },
+  skip() { this.fast = true; this.flushTimers(); voice.stop(); },
+  reset() { this.epoch++; this.q.length = 0; this.fast = true; this.flushTimers(); voice.stop(); this.busy = false; this.fast = false; this.info(); },
   info() {
     const waiting = this.q.filter((e) => e.type === "seat_done").length;
     $("#queueInfo").textContent = waiting ? `${waiting} lines up next` : "";
@@ -460,7 +461,8 @@ async function speak(key, text, { tag = "", target = null, sub = "" } = {}) {
   const words = text.split(" ").filter(Boolean);
   p.innerHTML = words.map((w) => `<span class="w">${esc(w)}</span> `).join("");
   const spans = $$(".w", p);
-  for (let i = 0; i < words.length; i++) {
+  if (voice.on && VOICE_SEATS.has(key) && !player.fast) await voice.say(key, words, spans);
+  else for (let i = 0; i < words.length; i++) {
     if (player.fast) break;
     const w = words[i];
     spans[i].classList.add("on");
@@ -476,6 +478,93 @@ async function speak(key, text, { tag = "", target = null, sub = "" } = {}) {
   $("#capSub").innerHTML = sub;
   await player.sleep(1300);
 }
+
+// ------------------------------------------------------------- voice
+// Reads the Hormozi seat's lines aloud with the browser's built-in speech (no
+// account, no API). Off until the viewer turns it on; browsers only allow speech
+// after a click anyway. The mouth and caption follow the audio's word events.
+const VOICE_SEATS = new Set(["hormozi"]);
+const voice = {
+  on: false, supported: "speechSynthesis" in window, utter: null, finish: null,
+  init() {
+    const btn = $("#voiceBtn");
+    if (!this.supported) return;
+    btn.hidden = false;
+    speechSynthesis.getVoices(); // voices load async; this starts the load
+    try { this.set(localStorage.getItem("roastroom.voice") === "on"); } catch { this.set(false); }
+    btn.addEventListener("click", () => this.set(!this.on));
+  },
+  set(on) {
+    this.on = on;
+    const btn = $("#voiceBtn");
+    btn.setAttribute("aria-pressed", String(on));
+    btn.textContent = `Hormozi voice: ${on ? "on" : "off"}`;
+    if (!on) this.stop();
+    try { localStorage.setItem("roastroom.voice", on ? "on" : "off"); } catch {}
+  },
+  pick() {
+    const en = speechSynthesis.getVoices().filter((v) => /^en[-_]US/i.test(v.lang));
+    // Edge's natural male voices first, then Windows' built-in male voices, then anything US English
+    const prefs = [/(Andrew|Guy|Christopher|Eric|Brian|Roger|Steffan).*Natural/i, /Microsoft (David|Mark)/i, /Google US English/i];
+    for (const re of prefs) { const v = en.find((x) => re.test(x.name)); if (v) return v; }
+    return en[0] || null;
+  },
+  stop() {
+    if (!this.supported) return;
+    speechSynthesis.cancel();
+    if (this.finish) this.finish();
+  },
+  say(key, words, spans) {
+    return new Promise((resolve) => {
+      const u = new SpeechSynthesisUtterance(words.join(" "));
+      const v = this.pick();
+      if (v) u.voice = v;
+      u.rate = Math.min(player.speed, 2);
+      u.pitch = 0.95;
+      const starts = [];
+      let pos = 0;
+      for (const w of words) { starts.push(pos); pos += w.length + 1; }
+      let lit = -1, gotBoundary = false, flap = null, guard = null, done = false;
+      const light = (i) => { for (let j = lit + 1; j <= i && j < spans.length; j++) spans[j].classList.add("on"); lit = Math.max(lit, i); };
+      const mouth = (w) => {
+        const shapes = shapesFor(w.replace(/[^a-z]/gi, ""));
+        shapes.forEach((sh, n) => setTimeout(() => { if (!done) setShape(key, sh); }, n * 70));
+        setTimeout(() => { if (!done) setShape(key, "base"); }, shapes.length * 70 + 40);
+      };
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearInterval(flap); clearTimeout(guard);
+        spans.forEach((s) => s.classList.add("on"));
+        setShape(key, "base");
+        this.utter = null; this.finish = null;
+        resolve();
+      };
+      u.onboundary = (e) => {
+        if (e.name && e.name !== "word") return;
+        gotBoundary = true;
+        let i = 0;
+        while (i + 1 < starts.length && starts[i + 1] <= e.charIndex) i++;
+        light(i); mouth(words[i]);
+      };
+      u.onstart = () => {
+        // some voices never report word boundaries: pace the caption and mouth by estimate
+        const t0 = Date.now(), perWord = 330 / u.rate;
+        flap = setInterval(() => {
+          if (gotBoundary) return;
+          const i = Math.floor((Date.now() - t0) / perWord);
+          if (i > lit && i < words.length) { light(i); mouth(words[i]); }
+        }, 60);
+      };
+      u.onend = finish;
+      u.onerror = finish; // blocked (no click yet) or interrupted: fall through silently
+      guard = setTimeout(finish, (words.length * 900) / u.rate + 4000); // some browsers drop onend
+      this.utter = u; this.finish = finish; // hold a reference so the utterance isn't garbage collected
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    });
+  },
+};
 
 // idle blinking for everyone, so the room feels alive between lines
 function startBlinking() {
